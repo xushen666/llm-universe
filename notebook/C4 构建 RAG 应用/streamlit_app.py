@@ -1,19 +1,33 @@
 import streamlit as st
-from langchain_openai import ChatOpenAI
 import os
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnableBranch, RunnablePassthrough
+from dotenv import load_dotenv
 import sys
-sys.path.append("notebook/C3 搭建知识库") # 将父目录放入系统路径中
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parents[2]
+load_dotenv(BASE_DIR / ".env")
+sys.path.append(str(BASE_DIR / "notebook" / "C3 搭建知识库"))
 from zhipuai_embedding import ZhipuAIEmbeddings
 from langchain_community.vectorstores import Chroma
+from zhipuai_llm import ZhipuaiLLM
+
+
+def get_api_key() -> str:
+    api_key = os.environ.get("ZHIPUAI_API_KEY")
+    if not api_key:
+        raise ValueError("未读取到 ZHIPUAI_API_KEY，请先在项目根目录的 .env 文件或环境变量中完成配置")
+    return api_key
 
 def get_retriever():
     # 定义 Embeddings
-    embedding = ZhipuAIEmbeddings()
+    embedding = ZhipuAIEmbeddings(api_key=get_api_key())
     # 向量数据库持久化路径
-    persist_directory = 'data_base/vector_db/chroma'
+    persist_directory = str(BASE_DIR / "data_base" / "vector_db" / "chroma")
+    if not Path(persist_directory).exists():
+        raise FileNotFoundError(f"未找到向量库目录: {persist_directory}，请先完成 C3 的知识库构建")
     # 加载数据库
     vectordb = Chroma(
         persist_directory=persist_directory,
@@ -26,7 +40,8 @@ def combine_docs(docs):
 
 def get_qa_history_chain():
     retriever = get_retriever()
-    llm = ChatOpenAI(model_name="gpt-4o", temperature=0)
+    api_key = get_api_key()
+    llm = ZhipuaiLLM(model_name="glm-4-plus", temperature=0, api_key=api_key)
     condense_question_system_template = (
         "请根据聊天记录总结用户最近的问题，"
         "如果没有多余的聊天记录则返回用户的问题。"

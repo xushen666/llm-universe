@@ -1,9 +1,10 @@
-from typing import List
+import os
+from typing import List, Optional
 from langchain_core.embeddings import Embeddings
 
 class ZhipuAIEmbeddings(Embeddings):
     """`Zhipuai Embeddings` embedding models."""
-    def __init__(self):
+    def __init__(self, api_key: Optional[str] = None):
         """
         实例化ZhipuAI为values["client"]
 
@@ -15,7 +16,10 @@ class ZhipuAIEmbeddings(Embeddings):
             values (Dict): 包含配置信息的字典。如果环境中有zhipuai库，则将返回实例化的ZhipuAI类；否则将报错 'ModuleNotFoundError: No module named 'zhipuai''.
         """
         from zhipuai import ZhipuAI
-        self.client = ZhipuAI()
+        self.api_key = api_key or os.environ.get("ZHIPUAI_API_KEY")
+        if not self.api_key:
+            raise ValueError("未读取到 ZHIPUAI_API_KEY，请先在 .env 或环境变量中完成配置")
+        self.client = ZhipuAI(api_key=self.api_key)
     
     def embed_documents(self, texts: List[str]) -> List[List[float]]:
         """
